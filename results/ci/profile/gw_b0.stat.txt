@@ -1,0 +1,10 @@
+# started on Tue Nov 17 10:31:52 2026
+
+
+ Performance counter stats for process id '6084':
+
+           4791.95 msec task-clock                                                            
+            140174      context-switches                                                      
+
+       8.002372918 seconds time elapsed
+

@@ -30,6 +30,22 @@ machine over loopback. All numbers come from
 [results/local/summary.md](results/local/summary.md), which
 [tools/report.py](tools/report.py) generates from the raw JSON lines.
 
+The same fix was also checked on different hardware: GitHub Actions, an AMD
+EPYC 9V45 VM with 4 vCPUs, single reps. Those numbers are in
+[results/ci/summary.md](results/ci/summary.md).
+
+| | laptop VM (WSL2) | CI VM (EPYC) |
+|---|---|---|
+| naive writes: highest rate with p99 < 20 ms | 5k–25k (unstable), saturated by 30k | 50k, saturated at 75k |
+| coalesced writes | ≥ 400k (p99 ~2–4.5 ms) | ≥ 400k (p99 **483 µs**) |
+| docker compose, 12k/s through containers | — (no Docker) | p50 120 µs, p99 152 µs, 0 lost |
+| `docker kill risk1` mid-load at 12k/s | — | 0 lost (2 replayed) |
+| kill -9 risk @100k/s, 3 reps | see §2 | replay: 0 lost; control: 35 lost |
+
+Sends are much cheaper on the CI VM, so at 12k/s the two modes perform the
+same there (p99 ~0.4 ms). On both machines, coalescing raised the saturation
+point at least 8×.
+
 ### 1. The bottleneck and the fix: coalesced writes
 
 The first version did one `async_write`, and so one `send()` syscall, per

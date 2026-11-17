@@ -1,0 +1,17 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 7K of event 'task-clock:ppp'
+# Event count (approx.): 3994996500
+#
+# Overhead  Command  Shared Object        Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+# ........  .......  ...................  .......................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    18.91%  gw_svc   [kernel.kallsyms]    [k] _raw_spin_unlock_irqrestore
+     5.42%  gw_svc   [kernel.kallsyms]    [k] finish_task_switch.isra.0
+     2.57%  gw_svc   [kernel.kallsyms]    [k] do_syscall_64
+#
+# (Cannot load tips.txt file, please install perf!)
+#

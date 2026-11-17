@@ -1,0 +1,10 @@
+# started on Tue Nov 17 10:32:05 2026
+
+
+ Performance counter stats for process id '6192':
+
+           5629.98 msec task-clock                                                            
+            166140      context-switches                                                      
+
+       8.001921043 seconds time elapsed
+
