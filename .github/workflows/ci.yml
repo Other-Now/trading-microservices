@@ -1,0 +1,87 @@
+name: ci
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libboost-dev
+      - name: build + unit tests
+        run: BUILD_DIR=build bash scripts/build.sh && ./build/unit_tests
+      - name: ASan/UBSan build + unit tests
+        run: BUILD_DIR=build-asan CMAKE_ARGS=-DSANITIZE=ON bash scripts/build.sh && ./build-asan/unit_tests
+      - name: ASan end-to-end (load + risk kill + md kill)
+        # Reports go to /tmp/san (stack.sh wipes service logs on every `up`).
+        # Leak checking is off: Conn objects still referenced at shutdown are
+        # reclaimed by process exit, not a runtime leak.
+        env:
+          BIN: "${{ github.workspace }}/build-asan"
+          RUN: /tmp/run-asan
+          ASAN_OPTIONS: "log_path=/tmp/san/asan:detect_leaks=0"
+          UBSAN_OPTIONS: "log_path=/tmp/san/ubsan:print_stacktrace=1"
+        run: |
+          mkdir -p /tmp/san
+          bash scripts/kill_test.sh /tmp/asan-kill 5000 1
+          if ls /tmp/san/* 2>/dev/null; then cat /tmp/san/*; exit 1; fi
+          python3 - <<'EOF'
+          import json
+          for l in open('/tmp/asan-kill/kill.jsonl'):
+              d = json.loads(l)
+              if 'us' in d:
+                  print(d['label'], 'lost', d['lost'], 'dup', d['dup'], 'wrong', d['wrong'])
+                  assert d['dup'] == 0 and d['wrong'] == 0
+                  if 'replay0' not in d['label']:
+                      assert d['lost'] == 0, d['label']
+          EOF
+
+  bench:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libboost-dev linux-tools-common linux-tools-$(uname -r)
+      - run: BUILD_DIR=build bash scripts/build.sh
+      - name: allow perf to see kernel stacks
+        run: |
+          sudo sysctl -w kernel.perf_event_paranoid=-1 kernel.kptr_restrict=0
+          git clone -q --depth 1 https://github.com/brendangregg/FlameGraph /tmp/FlameGraph
+      - name: benchmarks
+        env: { BIN: "${{ github.workspace }}/build", RUN: /tmp/run, FLAMEGRAPH: /tmp/FlameGraph }
+        run: |
+          OUT=results/ci; mkdir -p $OUT
+          { uname -a; nproc; lscpu | grep 'Model name'; g++ --version | head -1; date -u; git rev-parse --short HEAD; } > $OUT/env.txt
+          bash scripts/target.sh $OUT/target.jsonl 3
+          BATCH=0 bash scripts/sweep.sh $OUT/sweep.jsonl 1
+          BATCH=1 bash scripts/sweep.sh $OUT/sweep.jsonl 1
+          bash scripts/kill_test.sh $OUT/kill_100k 100000 3
+          bash scripts/profile.sh $OUT/profile 30000
+          python3 tools/report.py $OUT > $OUT/summary.md
+          cat $OUT/summary.md >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with: { name: bench-results, path: results/ci }
+
+  compose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+      - run: docker compose up -d && sleep 2 && docker compose ps
+      - name: 12k orders/s through the containers
+        run: docker compose run --rm loadgen | tee compose.json
+      - name: kill -9 risk1 mid-load (gateway must replay, 0 lost)
+        run: |
+          (sleep 8; docker compose kill -s SIGKILL risk1) &
+          docker compose run --rm loadgen loadgen --host gw --port 7001 --rate 12000 --secs 20 --label compose_kill | tee compose_kill.json
+          wait
+          docker compose logs gw | grep -E "DOWN|up$"
+      - name: summary
+        if: always()
+        run: |
+          echo '### docker compose' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat compose.json compose_kill.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      - if: always()
+        run: docker compose down

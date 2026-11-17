@@ -1,0 +1,34 @@
+# docker compose up -d                      -> md, risk1, risk2, gw (gateway on localhost:7001)
+# docker compose run --rm loadgen           -> 12,000 orders/s for 20 s through the gateway
+# docker compose kill risk1                 -> gateway replays risk1's in-flight orders to risk2
+x-svc: &svc
+  build: .
+  image: trading-microservices:latest
+  init: true
+
+services:
+  md:
+    <<: *svc
+    command: ["md_svc", "--port", "7201", "--batch", "1"]
+
+  risk1:
+    <<: *svc
+    command: ["risk_svc", "--id", "1", "--port", "7101", "--md", "md:7201", "--batch", "1"]
+    depends_on: [md]
+
+  risk2:
+    <<: *svc
+    command: ["risk_svc", "--id", "2", "--port", "7101", "--md", "md:7201", "--batch", "1"]
+    depends_on: [md]
+
+  gw:
+    <<: *svc
+    command: ["gw_svc", "--port", "7001", "--risk", "risk1:7101,risk2:7101", "--batch", "1", "--replay", "1"]
+    depends_on: [risk1, risk2]
+    ports: ["7001:7001"]
+
+  loadgen:
+    <<: *svc
+    profiles: ["bench"]
+    command: ["loadgen", "--host", "gw", "--port", "7001", "--rate", "12000", "--secs", "20", "--label", "compose"]
+    depends_on: [gw]
