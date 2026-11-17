@@ -35,12 +35,15 @@ case "${1:-}" in
     risks=()
     for i in $(seq "$n"); do start_risk "$i"; risks+=("127.0.0.1:$((7100 + i))"); done
     for i in $(seq "$n"); do wait_port $((7100 + i)); done
-    "$BIN/gw_svc" --port 7001 --risk "$(IFS=,; echo "${risks[*]}")" --batch "$BATCH" --replay "$REPLAY" \
-      >"$RUN/gw.log" 2>&1 &
-    echo $! >"$RUN/gw.pid"
-    wait_port 7001
-    # wait until the gateway reports every risk link up
-    for _ in $(seq 100); do [ "$(grep -c ' up$' "$RUN/gw.log" || true)" -ge "$n" ] && break; sleep 0.05; done
+    for g in $(seq "${GW:-1}"); do
+      gn=gw; [ "$g" = 1 ] || gn=gw$g
+      "$BIN/gw_svc" --port $((7000 + g)) --risk "$(IFS=,; echo "${risks[*]}")" --batch "$BATCH" --replay "$REPLAY" \
+        >"$RUN/$gn.log" 2>&1 &
+      echo $! >"$RUN/$gn.pid"
+      wait_port $((7000 + g))
+      # wait until this gateway reports every risk link up
+      for _ in $(seq 100); do [ "$(grep -c ' up$' "$RUN/$gn.log" || true)" -ge "$n" ] && break; sleep 0.05; done
+    done
     sleep 0.3
     ;;
   down)

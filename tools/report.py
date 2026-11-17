@@ -59,8 +59,8 @@ def ok(d):
     return d["lost"] == 0 and d["achieved_rps"] >= 0.99 * d["rate"] and d["us"]["e2e"]["p99"] < TARGET_P99_US
 
 
-def sweep_section(outdir):
-    loads, cpu, _ = load(f"{outdir}/sweep.jsonl")
+def sweep_section(outdir, fname="sweep.jsonl", heading="Rate sweeps"):
+    loads, cpu, _ = load(f"{outdir}/{fname}")
     if not loads:
         return
     by_cfg = collections.defaultdict(lambda: collections.defaultdict(list))
@@ -69,7 +69,7 @@ def sweep_section(outdir):
         if m:
             by_cfg[m.group(1)][int(m.group(3))].append((int(m.group(2)), d, cpu.get(label, {})))
 
-    print("## Rate sweeps\n")
+    print(f"## {heading}\n")
     print(f"Sustained = 0 lost, achieved ≥ 99% of offered, e2e p99 < {TARGET_P99_US // 1000} ms. "
           "Cells: median over reps (range). A rep stops after the first rate with p99 > 1 s.\n")
     summary = []
@@ -77,15 +77,20 @@ def sweep_section(outdir):
         b, r, g = re.match(r"b(\d)_r(\d+)_g(\d+)", cfg).groups()
         title = f"{'coalesced' if b == '1' else 'naive'} writes, {r} risk, {g} gateway"
         print(f"### {cfg}: {title}\n")
-        print("| offered/s | reps | achieved/s | p50 | p99 (range) | p99.9 | max | lost | loadgen lag p99 | gw CPU user+sys |")
+        print("| offered/s | sustained reps | achieved/s | p50 | p99 (range) | p99.9 | max | lost | loadgen lag p99 | gw CPU user+sys |")
         print("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
-        best_per_rep = collections.defaultdict(int)
+        # Highest sustained rate per rep = highest rate R such that R and every
+        # lower swept rate passed in that rep (a lucky pass above a failure
+        # does not count).
+        best_per_rep, broken = collections.defaultdict(int), set()
+        top = max(by_cfg[cfg])
         for rate in sorted(by_cfg[cfg]):
             runs = by_cfg[cfg][rate]
             p99s = [d["us"]["e2e"]["p99"] for _, d, _ in runs]
             gw = [c.get("gw") for _, _, c in runs if c.get("gw")]
             gwtxt = f"{med([x['user'] for x in gw]):.0f}+{med([x['sys'] for x in gw]):.0f}%" if gw else "-"
-            print(f"| {rate:,} | {len(runs)} | {med([d['achieved_rps'] for _, d, _ in runs]):,.0f} "
+            npass = sum(ok(d) for _, d, _ in runs)
+            print(f"| {rate:,} | {npass}/{len(runs)} | {med([d['achieved_rps'] for _, d, _ in runs]):,.0f} "
                   f"| {fmt_us(med([d['us']['e2e']['p50'] for _, d, _ in runs]))} "
                   f"| {fmt_us(med(p99s))} ({rng(p99s)}) "
                   f"| {fmt_us(med([d['us']['e2e']['p999'] for _, d, _ in runs]))} "
@@ -93,17 +98,26 @@ def sweep_section(outdir):
                   f"| {sum(d['lost'] for _, d, _ in runs)} "
                   f"| {fmt_us(med([d['us']['sender_lag']['p99'] for _, d, _ in runs]))} | {gwtxt} |")
             for rep, d, _ in runs:
+                if rep in broken:
+                    continue
                 if ok(d):
-                    best_per_rep[rep] = max(best_per_rep[rep], rate)
-        bests = [best_per_rep.get(rep, 0) for rep in sorted({rep for runs in by_cfg[cfg].values() for rep, _, _ in runs})]
-        summary.append((cfg, title, bests))
+                    best_per_rep[rep] = rate
+                else:
+                    broken.add(rep)
+        reps = sorted({rep for runs in by_cfg[cfg].values() for rep, _, _ in runs})
+        bests = [best_per_rep.get(rep, 0) for rep in reps]
+        never_broke = [rep not in broken and best_per_rep.get(rep) == top for rep in reps]
+        summary.append((cfg, title, bests, never_broke, min(by_cfg[cfg])))
         print()
 
     print("### Highest sustained rate per config\n")
-    print("| config | per rep | median |")
-    print("|---|---|---:|")
-    for cfg, title, bests in summary:
-        print(f"| {title} | {', '.join(f'{x:,}' for x in bests)} | {med(bests):,.0f}/s |")
+    print("Highest rate where that rate *and every lower swept rate* met the target, per rep. "
+          "`≥` = never failed up to the top of the sweep (ceiling not reached). 0 = failed at the lowest swept rate.\n")
+    print("| config | lowest swept | per rep | median |")
+    print("|---|---:|---|---:|")
+    for cfg, title, bests, nb, low in summary:
+        cells = ", ".join(f"{'≥' if n else ''}{x:,}" for x, n in zip(bests, nb))
+        print(f"| {title} | {low:,} | {cells} | {med(bests):,.0f}/s |")
     print()
 
 
@@ -205,6 +219,8 @@ def main():
     print(f"# Results: {os.path.basename(os.path.normpath(outdir))}\n\n```\n{env}\n```\n")
     hops_section(outdir)
     sweep_section(outdir)
+    sweep_section(outdir, "ceiling.jsonl", "Ceiling search (coalesced writes, 400k+ orders/s), session 2")
+    sweep_section(outdir, "repro.jsonl", "Re-run of the 100k-600k range, session 3 (reproducibility check)")
     for sub in sorted(os.listdir(outdir)):
         if sub.startswith("kill"):
             kill_section(outdir, sub)

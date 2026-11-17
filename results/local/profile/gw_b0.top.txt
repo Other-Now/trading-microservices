@@ -1,0 +1,31 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 14K of event 'cycles:Pu'
+# Event count (approx.): 2143539803
+#
+# Overhead  Command  Shared Object        Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+# ........  .......  ...................  .......................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+     7.73%  gw_svc   gw_svc               [.] std::_Function_handler<void (tms::Conn&, tms::Msg&), main::{lambda(unsigned long)#1}::operator()(unsigned long) const::{lambda(boost::asio::basic_stream_socket<boost::asio::ip::tcp, boost::asio::any_io_executor>)#1}::operator()(boost::asio::basic_stream_socket<boost::asio::ip::tcp, boost::asio::any_io_executor>) const::{lambda(tms::Conn&, tms::Msg&)#1}>::_M_invoke(std::_Any_data const&, tms::Conn&, tms::Msg&)
+     6.48%  gw_svc   gw_svc               [.] boost::asio::detail::scheduler::do_run_one(boost::asio::detail::conditionally_enabled_mutex::scoped_lock&, boost::asio::detail::scheduler_thread_info&, boost::system::error_code const&)
+     4.57%  gw_svc   gw_svc               [.] boost::asio::detail::reactive_socket_send_op_base<boost::asio::const_buffers_1>::do_perform(boost::asio::detail::reactor_op*)
+     4.43%  gw_svc   gw_svc               [.] boost::asio::detail::reactive_socket_recv_op<boost::asio::mutable_buffers_1, tms::Conn::do_read()::{lambda(boost::system::error_code, unsigned long)#1}, boost::asio::any_io_executor>::do_complete(void*, boost::asio::detail::scheduler_operation*, boost::system::error_code const&, unsigned long)
+     4.40%  gw_svc   libc.so.6            [.] pthread_mutex_unlock
+     4.37%  gw_svc   gw_svc               [.] tms::Conn::do_write()
+     4.17%  gw_svc   gw_svc               [.] boost::asio::detail::epoll_reactor::start_op(int, int, boost::asio::detail::epoll_reactor::descriptor_state*&, boost::asio::detail::reactor_op*, bool, bool, void (*)(boost::asio::detail::scheduler_operation*, bool, void const*), void const*)
+     4.02%  gw_svc   libc.so.6            [.] pthread_mutex_lock
+     3.82%  gw_svc   gw_svc               [.] boost::asio::detail::reactive_socket_send_op<boost::asio::const_buffers_1, boost::asio::detail::write_op<boost::asio::basic_stream_socket<boost::asio::ip::tcp, boost::asio::any_io_executor>, boost::asio::mutable_buffers_1, boost::asio::mutable_buffer const*, boost::asio::detail::transfer_all_t, tms::Conn::do_write()::{lambda(boost::system::error_code, unsigned long)#2}>, boost::asio::any_io_executor>::do_complete(void*, boost::asio::detail::scheduler_operation*, boost::system::error_code const&, unsigned long)
+     2.72%  gw_svc   gw_svc               [.] main::{lambda(Pending)#1}::operator()(Pending) const
+     2.65%  gw_svc   libc.so.6            [.] malloc
+     2.52%  gw_svc   gw_svc               [.] main::{lambda(unsigned int, tms::Msg&)#1}::operator()(unsigned int, tms::Msg&) const
+     2.41%  gw_svc   libc.so.6            [.] cfree
+     2.40%  gw_svc   gw_svc               [.] boost::asio::detail::binder2<boost::asio::detail::write_op<boost::asio::basic_stream_socket<boost::asio::ip::tcp, boost::asio::any_io_executor>, boost::asio::mutable_buffers_1, boost::asio::mutable_buffer const*, boost::asio::detail::transfer_all_t, tms::Conn::do_write()::{lambda(boost::system::error_code, unsigned long)#2}>, boost::system::error_code, unsigned long>::operator()()
+     2.20%  gw_svc   gw_svc               [.] boost::asio::detail::reactive_socket_recv_op_base<boost::asio::mutable_buffers_1>::do_perform(boost::asio::detail::reactor_op*)
+     2.16%  gw_svc   gw_svc               [.] std::_Sp_counted_base<(__gnu_cxx::_Lock_policy)2>::_M_release()
+     2.15%  gw_svc   gw_svc               [.] boost::asio::detail::scheduler::post_immediate_completion(boost::asio::detail::scheduler_operation*, bool)
+#
+# (Cannot load tips.txt file, please install perf!)
+#

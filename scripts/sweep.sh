@@ -21,7 +21,10 @@ for rep in $(seq "$REPS"); do
     GW=$GW bash "$ROOT/scripts/stack.sh" up "$N_RISK"
     run_load "${tag}_rep${rep}_${rate}" "$rate" "$SECS" "$OUT" --port "$PORTS" --conns $((4 * GW > 4 ? 4 * GW : 4))
     bash "$ROOT/scripts/stack.sh" down
-    p99=$(tail -2 "$OUT" | head -1 | python3 -c 'import json,sys; print(json.load(sys.stdin)["us"]["e2e"]["p99"])')
+    label="${tag}_rep${rep}_${rate}"
+    line=$(grep "\"label\":\"$label\",\"rate\"" "$OUT" | tail -1)
+    [ -n "$line" ] || { echo "loadgen wrote no result for $label" >&2; exit 1; }
+    p99=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["us"]["e2e"]["p99"])' "$line")
     if python3 -c "import sys; sys.exit(0 if float('$p99') > 1e6 else 1)"; then
       echo "  saturated at $rate (p99 ${p99} us), stopping this rep" >&2
       break

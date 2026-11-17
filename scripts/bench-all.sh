@@ -18,6 +18,16 @@ for cfg in "1 1" "4 1" "2 2" "4 2"; do
   BATCH=1 N_RISK=$1 GW=$2 RATES="$SC_RATES" bash scripts/sweep.sh "$OUT/sweep.jsonl" 3
 done
 
+# 2b. ceiling search: everything above sustained 400k, so push past it
+CEIL_RATES="400000 500000 600000 700000 800000 1000000"
+for cfg in "1 1" "2 1" "4 1" "2 2" "4 2"; do
+  set -- $cfg
+  BATCH=1 N_RISK=$1 GW=$2 RATES="$CEIL_RATES" bash scripts/sweep.sh "$OUT/ceiling.jsonl" 3
+done
+
+# 2c. JD target point with per-hop breakdown
+bash scripts/target.sh "$OUT/target.jsonl" 3
+
 # 3. failure tests
 bash scripts/kill_test.sh "$OUT/kill_20k" 20000 5
 bash scripts/kill_test.sh "$OUT/kill_100k" 100000 5

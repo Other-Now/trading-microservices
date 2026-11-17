@@ -1,0 +1,10 @@
+# started on Tue Nov 17 09:53:44 2026
+
+
+ Performance counter stats for process id '505':
+
+           7564.46 msec task-clock:u                     #    0.945 CPUs utilized             
+                 0      context-switches:u               #    0.000 /sec                      
+
+       8.002588200 seconds time elapsed
+

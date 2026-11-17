@@ -1,0 +1,10 @@
+# started on Tue Nov 17 09:53:33 2026
+
+
+ Performance counter stats for process id '408':
+
+           7726.14 msec task-clock:u                     #    0.965 CPUs utilized             
+                 0      context-switches:u               #    0.000 /sec                      
+
+       8.007287700 seconds time elapsed
+
